@@ -1,0 +1,81 @@
+# rpg-dice-mcp Deployment.
+#
+# Single-replica Go MCP server. Stateless (each roll is independent),
+# crypto/rand seeded — no cache to warm, no DB, no volumes beyond
+# the read-only Service Account token mount.
+#
+# Health endpoint: /healthz (separate from the MCP streamable handler
+# at /, which only accepts MCP protocol traffic — bare GET / fails
+# the probe → kubelet kills the pod). Same lesson as the sibling
+# mcp-server deployment; pinned to /healthz on first deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rpg-dice-mcp
+  namespace: rpg-dice-mcp
+  labels:
+    app.kubernetes.io/name: rpg-dice-mcp
+    app.kubernetes.io/part-of: homelab-mcp
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rpg-dice-mcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rpg-dice-mcp
+        app.kubernetes.io/part-of: homelab-mcp
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: rpg-dice-mcp-harbor-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rpg-dice-mcp
+          image: harbor.sirddail.net/ai/rpg-dice-mcp:dev
+          imagePullPolicy: Always
+          args:
+            - --http=:8080
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: "16Mi"
+              cpu: "10m"
+            limits:
+              # Per feedback_unbounded_pods_are_node_killers — always set
+              # memory limits so a runaway can't OOM the node. The Go
+              # binary is tiny; 64Mi is generous.
+              memory: "64Mi"
+              cpu: "200m"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true

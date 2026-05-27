@@ -1,0 +1,33 @@
+# ImageUpdater CR for rpg-dice-mcp.
+#
+# Distributed location per architecture/applicationset-patterns.md
+# (in homelab repo): IU CRDs live next to their app's deploy
+# manifests, enrolled via the image-updater-apps ApplicationSet in
+# argocd-projects.
+#
+# Watches harbor.sirddail.net/ai/rpg-dice-mcp for semver release tags
+# (bare X.Y.Z; no `v` per canonical homelab style — git tags use v,
+# image tags don't, see feedback_git_tag_vs_image_tag_convention).
+# Tags are created by docker-release.yaml in rpg-dice-mcp-docker
+# on every GitHub release publish.
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: rpg-dice-mcp-iu
+spec:
+  namespace: argocd
+  applicationRefs:
+    - namePattern: "rpg-dice-mcp"
+      useAnnotations: false
+      images:
+        - alias: "rpg-dice-mcp"
+          imageName: "harbor.sirddail.net/ai/rpg-dice-mcp:0.x"
+          commonUpdateSettings:
+            pullSecret: "pullsecret:rpg-dice-mcp/rpg-dice-mcp-harbor-pull"
+            forceUpdate: false
+      writeBackConfig:
+        method: "git"
+        gitConfig:
+          repository: "https://github.com/dvystrcil/rpg-dice-mcp.git"
+          branch: "main"
+          writeBackTarget: "kustomization:/base"

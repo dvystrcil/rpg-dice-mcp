@@ -30,4 +30,4 @@ spec:
         gitConfig:
           repository: "https://github.com/dvystrcil/rpg-dice-mcp.git"
           branch: "main"
-          writeBackTarget: "kustomization:/base"
+          writeBackTarget: "kustomization:/overlays"

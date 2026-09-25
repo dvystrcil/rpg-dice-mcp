@@ -15,7 +15,6 @@ kind: ImageUpdater
 metadata:
   name: rpg-dice-mcp-iu
 spec:
-  namespace: argocd
   applicationRefs:
     - namePattern: "rpg-dice-mcp"
       useAnnotations: false
